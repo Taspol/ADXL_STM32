@@ -22,7 +22,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ADXL375.h"
-#include "adxl345.h"
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -47,9 +46,9 @@ I2C_HandleTypeDef hi2c1;
 SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
-uint8_t chipID=0;
-int16_t x, y, z;
-ADXL375 dev;
+float x,y,z;
+float accX, accY, accZ;
+float acceleration[3];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,16 +57,6 @@ static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-void adxl_read (uint8_t Reg, uint8_t *Buffer, size_t len)
-{
-	Reg |= 0x80;  // read operation
-	Reg |= 0x40;  // multibyte read
-	HAL_GPIO_WritePin (GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);  // pull the cs pin low to enable the slave
-	HAL_SPI_Transmit (&hspi2, &Reg, 1, 100);  // send the address from where you want to read data
-	HAL_SPI_Receive (&hspi2, Buffer, len, 100);  // read 6 BYTES of data
-	HAL_GPIO_WritePin (GPIOA, GPIO_PIN_8, GPIO_PIN_SET);  // pull the cs pin high to disable the slave
-}
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -109,42 +98,33 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_StatusTypeDef status;
 
- /* structure instance for data storage */
-
-  int errors = 0;		/* Initialisation error check */
-//  adxl_read(0x00, &chipID, 1);
-
-  errors = ADXL375_Initialise(&dev, &hspi2);
+  ADXL375 accelerometer(&hspi2);
+  if (!accelerometer.devicePresent()) {
+      return -1;
+  }
+  accelerometer.setDataRate(0x0F);
+  accelerometer.setPowerMode(true);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	    x=adxl_readx();
-//	    y=adxl_ready();
-//	    z=adxl_readz();
-//	    HAL_Delay(100);
-	uint8_t tx1[2] = {0x80,0x00};
-	uint8_t rx1, rx2;
+      	status = accelerometer.readAcceleration();
+		if (status == HAL_OK) {
+			// Get individual values
+			x = accelerometer.getAccX();
+			y = accelerometer.getAccY();
+			z = accelerometer.getAccZ();
 
-//	ToggleCSLow();
-//	HAL_Delay(10);
-//	HAL_SPI_TransmitReceive(&hspi2, &tx1, &rx1, 1, HAL_MAX_DELAY);
-//	HAL_Delay(10);
-//	    HAL_SPI_TransmitReceive(&hspi2, &tx2, &rx2, 1, HAL_MAX_DELAY);
-//	ToggleCSHigh();
-	 status = ADXL375_ReadAcceleration(&dev);
-	  if (status == HAL_OK) {
-		  ADXL375_CleanRawValues(&dev);
+			// Get all values at once
+			accelerometer.getAcceleration(accX, accY, accZ);
 
-	 HAL_Delay(10);
+			// Get as array
+			accelerometer.getAccelerationArray(acceleration);
 
-//		  sprintf(txBuffer, "Acceleration Values: X = %.3f\tY = %.3f\tZ = %.3f g\n\r", dev.accData[0] / 1000, dev.accData[1] / 1000, dev.accData[2] / 1000);
-//		  CDC_Transmit_FS((uint8_t *) txBuffer, strlen(txBuffer));
-//
-//		  HAL_Delay(500);
-	  }
+		}
+		HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
